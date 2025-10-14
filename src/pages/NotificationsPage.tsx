@@ -1,14 +1,26 @@
-import { Bell, Check, Trash2, ExternalLink } from 'lucide-react';
+import { Bell, Check, X, Trash2, ExternalLink } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useState } from 'react';
 
 export default function NotificationsPage() {
-  const { state, markAsRead, markAllAsRead } = useApp();
+  const { state, dispatch } = useApp();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   const notifications = filter === 'unread' 
     ? state.notifications.filter(n => !n.is_read)
     : state.notifications;
+
+  const markAsRead = (id: string) => {
+    dispatch({ type: 'MARK_NOTIFICATION_READ', payload: id });
+  };
+
+  const markAllAsRead = () => {
+    state.notifications.forEach(notif => {
+      if (!notif.is_read) {
+        dispatch({ type: 'MARK_NOTIFICATION_READ', payload: notif.id });
+      }
+    });
+  };
 
   const deleteNotification = (id: string) => {
     // In a real app, this would call an API
@@ -17,25 +29,39 @@ export default function NotificationsPage() {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'trade': return '💰';
-      case 'payment': return '💳';
-      case 'kyc': return '📋';
-      case 'social': return '👥';
-      case 'news': return '📰';
-      case 'alert': return '⚠️';
-      default: return '🔔';
+      case 'trade':
+        return '💰';
+      case 'payment':
+        return '💳';
+      case 'kyc':
+        return '📋';
+      case 'social':
+        return '👥';
+      case 'news':
+        return '📰';
+      case 'alert':
+        return '⚠️';
+      default:
+        return '🔔';
     }
   };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'trade': return 'text-[#02C076]';
-      case 'payment': return 'text-[#FCD535]';
-      case 'kyc': return 'text-blue-400';
-      case 'social': return 'text-purple-400';
-      case 'news': return 'text-orange-400';
-      case 'alert': return 'text-[#F6465D]';
-      default: return 'text-gray-400';
+      case 'trade':
+        return 'text-[#02C076]';
+      case 'payment':
+        return 'text-[#FCD535]';
+      case 'kyc':
+        return 'text-blue-400';
+      case 'social':
+        return 'text-purple-400';
+      case 'news':
+        return 'text-orange-400';
+      case 'alert':
+        return 'text-[#F6465D]';
+      default:
+        return 'text-gray-400';
     }
   };
 
@@ -101,8 +127,11 @@ export default function NotificationsPage() {
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <span>
                             {new Date(notification.created_at).toLocaleString('pt-BR', {
-                              day: '2-digit', month: '2-digit', year: 'numeric',
-                              hour: '2-digit', minute: '2-digit'
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
                             })}
                           </span>
                           <span>•</span>
@@ -129,6 +158,10 @@ export default function NotificationsPage() {
                         
                         {notification.action_url && (
                           <button
+                            onClick={() => {
+                              // In a real app, this would navigate to the URL
+                              console.log('Navigate to:', notification.action_url);
+                            }}
                             className="p-1.5 text-gray-400 hover:text-[#FCD535] transition-colors"
                             title="Ver detalhes"
                           >
@@ -166,6 +199,7 @@ export default function NotificationsPage() {
         </div>
       </div>
 
+      {/* Estatísticas */}
       <div className="grid grid-cols-2 gap-4">
         <div className="binance-card p-4">
           <div className="flex items-center gap-2 mb-2">

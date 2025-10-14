@@ -71,42 +71,11 @@ export const useUserBalances = () => {
     return brlBalance.total_balance + (usdtBalance.total_balance * usdtToBrl);
   };
 
-  const updateUserBalance = async (currency: string, amount: number) => {
-    if (!user) return { error: new Error('User not authenticated') };
-    
-    const currentBalance = getBalance(currency).total_balance;
-    const newBalance = currentBalance + amount;
-
-    try {
-      const { error } = await supabase
-        .from('user_balances')
-        .update({ total_balance: newBalance, available_balance: newBalance })
-        .eq('user_id', user.id)
-        .eq('currency', currency);
-
-      if (error) throw error;
-
-      setBalances(prev => 
-        prev.map(b => 
-          b.currency === currency 
-            ? { ...b, total_balance: newBalance, available_balance: newBalance } 
-            : b
-        )
-      );
-      return { error: null };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar saldo';
-      setError(errorMessage);
-      return { error: new Error(errorMessage) };
-    }
-  };
-
   return {
     balances,
     loading,
     error,
     getBalance,
     getTotalBalanceInBRL,
-    updateUserBalance,
   };
 };

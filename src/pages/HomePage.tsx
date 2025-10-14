@@ -9,14 +9,15 @@ export default function HomePage() {
   const [showBalance, setShowBalance] = useState(true);
   const [showAddFunds, setShowAddFunds] = useState(false);
   const [addAmount, setAddAmount] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const brlBalance = state.userBalances.find(b => b.currency === 'BRL')?.total_balance || 0;
-  const usdtBalance = state.userBalances.find(b => b.currency === 'USDT')?.total_balance || 0;
-  const btcBalance = state.userBalances.find(b => b.currency === 'BTC')?.total_balance || 0;
+  const totalBalance = Object.entries(state.userBalances).reduce((total, [currency, amount]) => {
+    if (currency === 'BRL') return total + amount;
+    if (currency === 'USDT') return total + (amount * 5.2); // Mock conversion rate
+    if (currency === 'BTC') return total + (amount * 285000); // Mock BTC price
+    return total;
+  }, 0);
 
-  const totalBalance = brlBalance + (usdtBalance * 5.2) + (btcBalance * 285000);
-
+  const featuredProperties = state.properties.slice(0, 3);
   const userPortfolio = state.userPortfolio;
 
   const formatCurrency = (value: number) => {
@@ -24,17 +25,6 @@ export default function HomePage() {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
-  };
-
-  const handleAddFunds = async () => {
-    const amount = parseFloat(addAmount);
-    if (amount > 0) {
-      setIsSubmitting(true);
-      await updateUserBalance('BRL', amount);
-      setAddAmount('');
-      setShowAddFunds(false);
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -101,7 +91,7 @@ export default function HomePage() {
             <Wallet className="w-4 h-4 text-[#FCD535]" />
             <span className="text-xs text-gray-400">Conta</span>
           </div>
-          <p className="text-lg font-bold">{formatCurrency(brlBalance)}</p>
+          <p className="text-lg font-bold">{formatCurrency(state.userBalances.BRL)}</p>
           <p className="text-xs text-gray-500">Disponível</p>
         </div>
 
@@ -128,7 +118,7 @@ export default function HomePage() {
           </div>
           <p className="text-lg font-bold">
             {formatCurrency(
-              (usdtBalance * 5.2) + (btcBalance * 285000)
+              (state.userBalances.USDT * 5.2) + (state.userBalances.BTC * 285000)
             )}
           </p>
           <p className="text-xs price-down">-2.1%</p>
@@ -186,9 +176,27 @@ export default function HomePage() {
 
         <div className="space-y-3">
           {[
-            { name: 'Bitcoin', symbol: 'BTC', icon: '₿', amount: btcBalance, marketPair: state.marketPairs.find(p => p.symbol === 'BTC-BRL') },
-            { name: 'Ethereum', symbol: 'ETH', icon: 'Ξ', amount: 0, marketPair: state.marketPairs.find(p => p.symbol === 'ETH-BRL') },
-            { name: 'USDT', symbol: 'USDT', icon: '₮', amount: usdtBalance, marketPair: null },
+            { 
+              name: 'Bitcoin', 
+              symbol: 'BTC', 
+              icon: '₿', 
+              amount: state.userBalances.BTC,
+              marketPair: state.marketPairs.find(p => p.symbol === 'BTC-BRL')
+            },
+            { 
+              name: 'Ethereum', 
+              symbol: 'ETH', 
+              icon: 'Ξ', 
+              amount: 0, // User doesn't have ETH yet
+              marketPair: state.marketPairs.find(p => p.symbol === 'ETH-BRL')
+            },
+            { 
+              name: 'USDT', 
+              symbol: 'USDT', 
+              icon: '₮', 
+              amount: state.userBalances.USDT,
+              marketPair: null // USDT doesn't have a market pair in our mock data
+            },
           ].map((crypto) => {
             const currentPrice = crypto.marketPair?.current_price || (crypto.symbol === 'USDT' ? 5.2 : 0);
             const change = crypto.marketPair?.price_change_24h || 0;
@@ -247,6 +255,7 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Modal de Adicionar Fundos */}
       {showAddFunds && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="binance-card p-6 max-w-md w-full">
@@ -292,11 +301,17 @@ export default function HomePage() {
                   Cancelar
                 </button>
                 <button
-                  onClick={handleAddFunds}
-                  disabled={isSubmitting}
-                  className="flex-1 binance-btn-primary py-2 disabled:opacity-50"
+                  onClick={() => {
+                    const amount = parseFloat(addAmount);
+                    if (amount > 0) {
+                      updateUserBalance('BRL', state.userBalances.BRL + amount);
+                      setAddAmount('');
+                      setShowAddFunds(false);
+                    }
+                  }}
+                  className="flex-1 binance-btn-primary py-2"
                 >
-                  {isSubmitting ? 'Adicionando...' : 'Adicionar'}
+                  Adicionar
                 </button>
               </div>
             </div>
