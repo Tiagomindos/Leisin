@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gray-800;
+  }
+
+  body {
+    @apply bg-[#0B0E11] text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+  }
+
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+}
+
+@layer utilities {
+  .binance-card {
+    @apply bg-[#1E2329] rounded-lg border border-gray-800;
+  }
+
+  .binance-btn-primary {
+    @apply bg-[#FCD535] hover:bg-[#F0B90B] text-black font-semibold rounded transition-colors;
+  }
+
+  .binance-btn-success {
+    @apply bg-[#02C076] hover:bg-[#019760] text-white font-semibold rounded transition-colors;
+  }
+
+  .binance-btn-danger {
+    @apply bg-[#F6465D] hover:bg-[#E33852] text-white font-semibold rounded transition-colors;
+  }
+
+  .binance-input {
+    @apply bg-[#2B3139] border border-gray-700 rounded px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#FCD535];
+  }
+
+  .price-up {
+    @apply text-[#02C076];
+  }
+
+  .price-down {
+    @apply text-[#F6465D];
+  }
+
+  .tab-active {
+    @apply text-[#FCD535] border-b-2 border-[#FCD535];
+  }
+}
