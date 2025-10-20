@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { mockMarketPairs } from '../data/mockData';
 
 interface MarketPair {
   id: string;
@@ -22,59 +22,25 @@ interface MarketPair {
 export const useMarketData = () => {
   const [marketPairs, setMarketPairs] = useState<MarketPair[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchMarketData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const { data, error } = await supabase
-          .from('market_pairs')
-          .select('*')
-          .eq('is_active', true)
-          .order('volume_24h', { ascending: false });
-
-        if (error) {
-          throw error;
-        }
-
-        setMarketPairs(data || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar dados de mercado');
-        console.error('Error fetching market data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMarketData();
+    setLoading(true);
+    setMarketPairs(mockMarketPairs);
+    setLoading(false);
   }, []);
 
-  const getTopGainers = () => {
-    return marketPairs
-      .filter(pair => pair.price_change_24h > 0)
-      .sort((a, b) => b.price_change_24h - a.price_change_24h)
-      .slice(0, 5);
-  };
+  const getTopGainers = () =>
+    [...marketPairs].filter(p => p.price_change_24h > 0).sort((a, b) => b.price_change_24h - a.price_change_24h).slice(0, 5);
 
-  const getTopLosers = () => {
-    return marketPairs
-      .filter(pair => pair.price_change_24h < 0)
-      .sort((a, b) => a.price_change_24h - b.price_change_24h)
-      .slice(0, 5);
-  };
+  const getTopLosers = () =>
+    [...marketPairs].filter(p => p.price_change_24h < 0).sort((a, b) => a.price_change_24h - b.price_change_24h).slice(0, 5);
 
-  const getTopVolume = () => {
-    return marketPairs
-      .sort((a, b) => b.volume_24h - a.volume_24h)
-      .slice(0, 5);
-  };
+  const getTopVolume = () =>
+    [...marketPairs].sort((a, b) => b.volume_24h - a.volume_24h).slice(0, 5);
 
-  const getMarketPairBySymbol = (symbol: string) => {
-    return marketPairs.find(pair => pair.symbol === symbol);
-  };
+  const getMarketPairBySymbol = (symbol: string) =>
+    marketPairs.find(p => p.symbol === symbol);
 
   return {
     marketPairs,

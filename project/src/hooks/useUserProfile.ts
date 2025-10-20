@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 interface UserProfile {
@@ -18,6 +17,8 @@ interface UserProfile {
   updated_at: string;
 }
 
+const profileKey = (id: string) => `t3_profile_${id}`;
+
 export const useUserProfile = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -25,57 +26,53 @@ export const useUserProfile = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setError(null);
     if (!user) {
       setProfile(null);
       setLoading(false);
       return;
     }
 
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        setProfile(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar perfil');
-        console.error('Error fetching profile:', err);
-      } finally {
+    const load = () => {
+      setLoading(true);
+      const key = profileKey(user.id);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const p = JSON.parse(raw) as UserProfile;
+        setProfile(p);
         setLoading(false);
+        return;
       }
+      const now = new Date().toISOString();
+      const defaultProfile: UserProfile = {
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || null,
+        phone: null,
+        cpf_cnpj: null,
+        user_type: 'investor',
+        kyc_status: 'pending',
+        risk_score: 0,
+        reputation_score: 0,
+        avatar_url: null,
+        bio: null,
+        created_at: now,
+        updated_at: now,
+      };
+      localStorage.setItem(key, JSON.stringify(defaultProfile));
+      setProfile(defaultProfile);
+      setLoading(false);
     };
 
-    fetchProfile();
+    load();
   }, [user]);
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user || !profile) return { error: new Error('No user or profile') };
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      setProfile({ ...profile, ...updates });
-      return { error: null };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar perfil';
-      setError(errorMessage);
-      return { error: new Error(errorMessage) };
-    }
+    const next = { ...profile, ...updates, updated_at: new Date().toISOString() };
+    localStorage.setItem(profileKey(user.id), JSON.stringify(next));
+    setProfile(next);
+    return { error: null };
   };
 
   return {

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { mockProperties } from '../data/mockData';
 
 interface Property {
   id: string;
-  spe_id: string;
+  spe_id?: string;
   name: string;
   description: string | null;
   property_type: 'residential' | 'commercial' | 'land' | 'mixed';
@@ -39,59 +39,31 @@ export const useProperties = (filters?: {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchProperties = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    setLoading(true);
+    setError(null);
+    let data = [...mockProperties];
 
-        let query = supabase
-          .from('properties')
-          .select('*')
-          .not('listed_at', 'is', null)
-          .order('created_at', { ascending: false });
+    if (filters?.property_type) {
+      data = data.filter(p => p.property_type === filters.property_type);
+    }
+    if (filters?.construction_status) {
+      data = data.filter(p => p.construction_status === filters.construction_status);
+    }
+    if (typeof filters?.min_yield === 'number') {
+      data = data.filter(p => (p.expected_yield ?? 0) >= (filters!.min_yield as number));
+    }
+    if (typeof filters?.max_price === 'number') {
+      data = data.filter(p => p.price_per_token <= (filters!.max_price as number));
+    }
 
-        if (filters?.property_type) {
-          query = query.eq('property_type', filters.property_type);
-        }
-
-        if (filters?.construction_status) {
-          query = query.eq('construction_status', filters.construction_status);
-        }
-
-        if (filters?.min_yield) {
-          query = query.gte('expected_yield', filters.min_yield);
-        }
-
-        if (filters?.max_price) {
-          query = query.lte('price_per_token', filters.max_price);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          throw error;
-        }
-
-        setProperties(data || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar propriedades');
-        console.error('Error fetching properties:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProperties();
+    setProperties(data);
+    setLoading(false);
   }, [filters]);
 
-  const getPropertyById = (id: string) => {
-    return properties.find(p => p.id === id);
-  };
+  const getPropertyById = (id: string) => properties.find(p => p.id === id);
 
   const getFeaturedProperties = () => {
-    return properties
-      .filter(p => p.expected_yield && p.expected_yield > 10)
-      .slice(0, 3);
+    return properties.filter(p => (p.expected_yield ?? 0) > 10).slice(0, 3);
   };
 
   return {

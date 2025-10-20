@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 interface UserBalance {
@@ -12,11 +11,22 @@ interface UserBalance {
   updated_at: string;
 }
 
+const balancesKey = (id: string) => `t3_balances_${id}`;
+
+const defaultBalances = (userId: string): UserBalance[] => {
+  const now = new Date().toISOString();
+  return [
+    { id: `bal-${userId}-brl`, user_id: userId, currency: 'BRL', available_balance: 50000, locked_balance: 0, total_balance: 50000, updated_at: now },
+    { id: `bal-${userId}-usdt`, user_id: userId, currency: 'USDT', available_balance: 1000, locked_balance: 0, total_balance: 1000, updated_at: now },
+    { id: `bal-${userId}-btc`, user_id: userId, currency: 'BTC', available_balance: 0.1, locked_balance: 0, total_balance: 0.1, updated_at: now },
+  ];
+};
+
 export const useUserBalances = () => {
   const { user } = useAuth();
   const [balances, setBalances] = useState<UserBalance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -24,51 +34,37 @@ export const useUserBalances = () => {
       setLoading(false);
       return;
     }
-
-    const fetchBalances = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const { data, error } = await supabase
-          .from('user_balances')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('currency');
-
-        if (error) {
-          throw error;
-        }
-
-        setBalances(data || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar saldos');
-        console.error('Error fetching balances:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBalances();
+    setLoading(true);
+    const key = balancesKey(user.id);
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      setBalances(JSON.parse(raw) as UserBalance[]);
+      setLoading(false);
+      return;
+    }
+    const initial = defaultBalances(user.id);
+    localStorage.setItem(key, JSON.stringify(initial));
+    setBalances(initial);
+    setLoading(false);
   }, [user]);
 
   const getBalance = (currency: string) => {
     return balances.find(b => b.currency === currency) || {
+      id: '',
+      user_id: user?.id || '',
+      currency,
       available_balance: 0,
       locked_balance: 0,
       total_balance: 0,
+      updated_at: new Date().toISOString(),
     };
   };
 
   const getTotalBalanceInBRL = () => {
-    // This would need real-time conversion rates in production
-    const brlBalance = getBalance('BRL');
-    const usdtBalance = getBalance('USDT');
-    
-    // Mock conversion rate
-    const usdtToBrl = 5.2;
-    
-    return brlBalance.total_balance + (usdtBalance.total_balance * usdtToBrl);
+    const brl = getBalance('BRL').total_balance;
+    const usdt = getBalance('USDT').total_balance;
+    const btc = getBalance('BTC').total_balance;
+    return brl + usdt * 5.2 + btc * 285000; // rates mock
   };
 
   return {

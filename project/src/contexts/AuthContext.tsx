@@ -1,15 +1,25 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+
+interface AuthUser {
+  id: string;
+  email: string;
+  user_metadata?: {
+    full_name?: string;
+  };
+}
+
+interface SessionLike {
+  user: AuthUser;
+}
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  session: SessionLike | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: { message: string } | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: { message: string } | null }>;
   signOut: () => Promise<void>;
-  updateProfile: (updates: { full_name?: string; phone?: string }) => Promise<{ error: any }>;
+  updateProfile: (updates: { full_name?: string; phone?: string }) => Promise<{ error: { message: string } | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,91 +36,78 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+const USER_STORAGE_KEY = 't3_local_user';
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<SessionLike | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      // Create profile if user signs up
-      if (event === 'SIGNED_UP' && session?.user) {
-        await createUserProfile(session.user);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    const raw = localStorage.getItem(USER_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as AuthUser;
+      setUser(saved);
+      setSession({ user: saved });
+    }
+    setLoading(false);
   }, []);
 
-  const createUserProfile = async (user: User) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .insert({
-          id: user.id,
-          email: user.email!,
-          full_name: user.user_metadata?.full_name || '',
-        });
-
-      if (error) {
-        console.error('Error creating profile:', error);
-      }
-    } catch (error) {
-      console.error('Error creating profile:', error);
-    }
-  };
-
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    if (!email || !password || password.length < 6) {
+      return { error: { message: 'Credenciais inválidas (senha mínima de 6 caracteres).' } };
+    }
+    const existing = (localStorage.getItem(USER_STORAGE_KEY));
+    const nextUser: AuthUser = existing ? JSON.parse(existing) : {
+      id: `local-${Date.now()}`,
       email,
-      password,
-    });
-    return { error };
+      user_metadata: { full_name: email.split('@')[0] }
+    };
+    // Atualiza email se mudou
+    nextUser.email = email;
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+    setSession({ user: nextUser });
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    if (!email || !password || password.length < 6) {
+      return { error: { message: 'Preencha email e senha válida (mínimo 6 caracteres).' } };
+    }
+    const newUser: AuthUser = {
+      id: `local-${Date.now()}`,
       email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-    return { error };
+      user_metadata: { full_name: fullName }
+    };
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
+    setUser(newUser);
+    setSession({ user: newUser });
+    return { error: null };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    localStorage.removeItem(USER_STORAGE_KEY);
   };
 
   const updateProfile = async (updates: { full_name?: string; phone?: string }) => {
-    if (!user) return { error: new Error('No user logged in') };
-
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
-
-    return { error };
+    if (!user) return { error: { message: 'Nenhum usuário logado' } };
+    const updated: AuthUser = {
+      ...user,
+      user_metadata: {
+        ...(user.user_metadata || {}),
+        full_name: updates.full_name ?? user.user_metadata?.full_name
+      }
+    };
+    setUser(updated);
+    setSession({ user: updated });
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated));
+    return { error: null };
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     session,
     loading,
