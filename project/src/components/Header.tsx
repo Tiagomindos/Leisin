@@ -1,4 +1,4 @@
-import { Bell, Menu, Search, User, LogOut, Building2, Shield } from 'lucide-react';
+import { Bell, Menu, Search, User, LogOut, Building2, Shield, Wallet } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useApp } from '../contexts/AppContext';
